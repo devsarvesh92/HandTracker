@@ -1,7 +1,10 @@
 import cv2
 import mediapipe as mp
 import time
+import math
 
+class finger(object):
+    pass
 
 class handTracker:
     def __init__(self, mode=False,maxHands = 2, detectionConfidence = 0.5, trackConfidence = 0.5):
@@ -41,35 +44,51 @@ class handTracker:
 
         # Create object
         # this can be made dynamic
-        cx,cy,r = 100,100,50
+        cx,cy,r = 100,100,100
         color = (255,0,0)
+        success,img = cap.read()
+        finger1 = finger()
 
         while True:
             success,img = cap.read()
 
-            image_height, image_width, _ = img.shape
+            self.image_height, self.image_width, _ = img.shape
             imgRGB = cv2.cvtColor(img,cv2.COLOR_BGR2RGB)
             results = self.hands.process(imgRGB)
+
             if results.multi_hand_landmarks:
                 
                 for handLms in results.multi_hand_landmarks:
                     self.mp_draw.draw_landmarks(img,handLms,self.mp_hands.HAND_CONNECTIONS)
-
-                    for id,landmark in enumerate(handLms.landmark) :
-                        if id == 8:
-                            pt1,pt2 = int(landmark.x * image_width), int(landmark.y * image_height)
-                            if cx-r<pt1<cx+r :
-                                cx=pt1
-                                cy=pt2
-                                color = (0,255,0)
-                            else:
-                                color = (255,0,0)
-            
+                    self.handLms = handLms
+                    distance = self.getDistance(8,12)
+                    finger1.cx,finger1.cy = self.getCordinates(8)
+                    if distance is not None and distance < 70:
+                        if finger1.cx-r < cx < finger1.cx+r:
+                            cx = finger1.cx
+                            cy = finger1.cy
+                            print(finger1)
+           
             cv2.circle(img,(cx,cy),r,color,-1)
-                    
+
             img = cv2.flip(img,2)
             cv2.imshow("Tracker",img)
             cv2.waitKey(1)
+
+    def getDistance(self,id1,id2):
+
+        pt1 = finger()
+        pt2 = finger()
+
+        if hasattr(self,'handLms'):
+            pt1.cx,pt1.cy = self.getCordinates(id1)
+            pt2.cx,pt2.cy = self.getCordinates(id2)
+            return math.dist([pt1.cx,pt1.cy],[pt2.cx,pt2.cy])
+
+    def getCordinates(self,fingerId):
+        for id,landmark in enumerate(self.handLms.landmark) :
+            if id == fingerId:
+                return (int(landmark.x * self.image_width), int(landmark.y * self.image_height))
 
 def main():
     handTrackerMod = handTracker(detectionConfidence=0.7,trackConfidence=0.7)
